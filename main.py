@@ -79,9 +79,28 @@ for teamName in teams:
         print("Error for", teamName, "(batting):", e)
 
 
+bowling_list = []
+for teamName in teams:
+    teamId = teams[teamName]
+    try:
+        df = datascraper("mostWickets", teamName, teamId)
+        if df is not None:
+            print(teamName, "->", len(df), "rows")
+            bowling_list.append(df)
+    except Exception as e:
+        print("Error for", teamName, "(bowling):", e)
+
+
 batting_df = pd.concat(batting_list, ignore_index = True)
+bowling_df = pd.concat(bowling_list, ignore_index = True)
+
+
 batting_df = batting_df.drop_duplicates(subset = ["player", "team"])
-batting_df.to_csv("ipl_2025_players.csv", index = False)
+bowling_df = bowling_df.drop_duplicates(subset = ["player", "team"])
 
 
-        
+#join batting and bowling for the same player
+final_df = pd.merge(batting_df, bowling_df, on = ["player", "team"], how = "outer", suffixes = ("_bat", "_bowl"))
+
+final_df.to_csv("ipl_2025_players.csv", index = False)
+print("Saved CSV")
