@@ -22,8 +22,6 @@ def datascraper(statType, teamName, teamId):
     response = requests.get(url)
     soup = BeautifulSoup(response.text,"html.parser")
     title = soup.find("title")
-    print(title.get_text())
-    print("status code:", response.status_code)
 
     table = soup.find_all("table")
     rows = soup.find_all("tr")
@@ -47,10 +45,6 @@ def datascraper(statType, teamName, teamId):
         print("No data rows for", statType)
         return None
 
-    if len(headers) != len(all_players[0]):
-        print("Mismatch:", len(headers), "headers vs", len(all_players[0]), "cells")
-        print(headers)
-        return None
 
     df = pd.DataFrame(all_players,columns = headers)
 
@@ -70,26 +64,17 @@ def datascraper(statType, teamName, teamId):
 batting_list = []
 for teamName in teams:
     teamId = teams[teamName]
-    try:
-        df = datascraper("mostRuns", teamName, teamId)
-        if df is not None:
-            print(teamName, "->", len(df), "rows")
-            batting_list.append(df)
-    except Exception as e:
-        print("Error for", teamName, "(batting):", e)
+    df = datascraper("mostRuns", teamName, teamId)
+    if df is not None:
+         batting_list.append(df)
 
 
 bowling_list = []
 for teamName in teams:
     teamId = teams[teamName]
-    try:
-        df = datascraper("mostWickets", teamName, teamId)
-        if df is not None:
-            print(teamName, "->", len(df), "rows")
-            bowling_list.append(df)
-    except Exception as e:
-        print("Error for", teamName, "(bowling):", e)
-
+    df = datascraper("mostWickets", teamName, teamId)
+    if df is not None:
+        bowling_list.append(df)
 
 batting_df = pd.concat(batting_list, ignore_index = True)
 bowling_df = pd.concat(bowling_list, ignore_index = True)
@@ -99,8 +84,40 @@ batting_df = batting_df.drop_duplicates(subset = ["player", "team"])
 bowling_df = bowling_df.drop_duplicates(subset = ["player", "team"])
 
 
-#join batting and bowling for the same player
+#renaming the columns
+batting_df = batting_df.rename(columns = {
+    "matches": "matches_played",
+    "inns": "innings",
+    "runs": "runs_scored",
+    "avg": "batting_avg",
+    "sr": "batting_sr",
+    "4s": "fours",
+    "6s": "sixes"
+})
+
+bowling_df = bowling_df.rename(columns = {
+    "matches": "bowling_matches",
+    "overs": "overs_bowled",
+    "balls": "balls_bowled",
+    "runs": "runs_conceded",
+    "wkts": "wickets",
+    "avg": "bowling_avg",
+    "4-fers": "four_wicket_hauls",
+    "5-fers": "five_wicket_hauls"
+})
+
+
 final_df = pd.merge(batting_df, bowling_df, on = ["player", "team"], how = "outer", suffixes = ("_bat", "_bowl"))
+
+first_columns = ["player", "team"]
+new_order = []
+for col in first_columns:
+    new_order.append(col)
+for col in final_df.columns:
+    if col not in first_columns:
+        new_order.append(col)
+
+final_df = final_df[new_order]
 
 final_df.to_csv("ipl_2025_players.csv", index = False)
 print("Saved CSV")
